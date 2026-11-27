@@ -1,0 +1,222 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────
+// ENUMLAR
+// ──────────────────────────────
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum TestStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+}
+
+// ──────────────────────────────
+// TASHKILIY STRUKTURA
+// ──────────────────────────────
+
+model Faculty {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  groups Group[]
+
+  @@map("faculties")
+}
+
+model Group {
+  id        Int      @id @default(autoincrement())
+  name      String
+  course    Int // kurs: 1, 2, 3, 4
+  facultyId Int
+  createdAt DateTime @default(now())
+
+  faculty    Faculty     @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  users      User[]
+  testGroups TestGroup[]
+
+  @@unique([facultyId, name])
+  @@index([facultyId])
+  @@map("groups")
+}
+
+// ──────────────────────────────
+// FOYDALANUVCHI
+// ──────────────────────────────
+
+model User {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @unique
+  role       Role     @default(STUDENT)
+  fullName   String
+  phone      String?
+  groupId    Int?
+  isBlocked  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  group        Group?    @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  createdTests Test[]    @relation("TestAuthor")
+  attempts     Attempt[]
+
+  @@index([groupId])
+  @@index([role])
+  @@map("users")
+}
+
+// ──────────────────────────────
+// FAN VA TEST
+// ──────────────────────────────
+
+model Subject {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  tests Test[]
+
+  @@map("subjects")
+}
+
+model Test {
+  id               Int        @id @default(autoincrement())
+  subjectId        Int
+  authorId         Int
+  title            String
+  description      String?
+  timeLimitSec     Int // test uchun umumiy vaqt, soniyalarda
+  maxAttempts      Int        @default(1)
+  passScore        Float // o'tish bali, foizda (masalan 60.0)
+  opensAt          DateTime?
+  closesAt         DateTime?
+  shuffleQuestions Boolean    @default(true)
+  shuffleOptions   Boolean    @default(true)
+  status           TestStatus @default(DRAFT)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  subject    Subject     @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  author     User        @relation("TestAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  questions  Question[]
+  testGroups TestGroup[]
+  attempts   Attempt[]
+
+  @@index([subjectId])
+  @@index([authorId])
+  @@index([status])
+  @@map("tests")
+}
+
+// Test <-> Group ko'pdan-ko'pga bog'lanish
+model TestGroup {
+  testId  Int
+  groupId Int
+
+  test  Test  @relation(fields: [testId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([testId, groupId])
+  @@index([groupId])
+  @@map("test_groups")
+}
+
+// ──────────────────────────────
+// SAVOL VA VARIANT
+// ──────────────────────────────
+
+model Question {
+  id          Int      @id @default(autoincrement())
+  testId      Int
+  text        String
+  explanation String? // xato javobdan keyin ko'rsatiladigan tushuntirish
+  order       Int // asl tartib, shuffle qilinmasdan oldingi
+  points      Float    @default(1)
+  createdAt   DateTime @default(now())
+
+  test    Test     @relation(fields: [testId], references: [id], onDelete: Restrict)
+  options Option[]
+  answers Answer[]
+
+  @@unique([testId, order])
+  @@index([testId])
+  @@map("questions")
+}
+
+model Option {
+  id         Int     @id @default(autoincrement())
+  questionId Int
+  text       String
+  isCorrect  Boolean @default(false)
+  order      Int
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  Answer[]
+
+  @@unique([questionId, order])
+  @@index([questionId])
+  @@map("options")
+}
+
+// ──────────────────────────────
+// URINISH VA JAVOB
+// ──────────────────────────────
+
+model Attempt {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  testId        Int
+  status        AttemptStatus @default(IN_PROGRESS)
+  questionOrder Json // shuffle qilingan savol ID'lari, masalan [5,2,9,1]
+  startedAt     DateTime      @default(now())
+  finishedAt    DateTime?
+  score         Float?
+  correctCount  Int?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  test    Test     @relation(fields: [testId], references: [id], onDelete: Restrict)
+  answers Answer[]
+
+  @@index([userId, testId])
+  @@index([testId])
+  @@index([status])
+  @@map("attempts")
+}
+
+model Answer {
+  id               Int       @id @default(autoincrement())
+  attemptId        Int
+  questionId       Int
+  selectedOptionId Int?
+  isCorrect        Boolean?
+  answeredAt       DateTime?
+  timeSpentSec     Int?
+
+  attempt        Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  selectedOption Option?  @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  @@unique([attemptId, questionId])
+  @@index([questionId])
+  @@map("answers")
+}
