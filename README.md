@@ -9,7 +9,7 @@ Ushbu zip — Claude bilan suhbat davomida 1–9-bosqichlarda ishlab chiqilgan *
 - Node.js **20.19+, 22.12+ yoki 24.0+** (Prisma ORM 7 ning aniq talabi — Node 22.x tavsiya etiladi)
 - PostgreSQL
 - Redis
-- `chartjs-node-canvas` uchun tizim kutubxonalari: `sudo apt install -y build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev`
+- `chartjs-node-canvas` uchun tizim kutubxonalari: `sudo apt install -y pkg-config build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev`
 - PM2 (production uchun): `npm install -g pm2`
 
 ## Tezkor boshlash (lokal development)

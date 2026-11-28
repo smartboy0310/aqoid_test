@@ -36,13 +36,18 @@ PostgreSQL odatda faqat `localhost`da tinglaydi (standart sozlama) — buni o'zg
 
 ## 4. Grafik generatsiya uchun tizim kutubxonalari (muhim!)
 
-`chartjs-node-canvas` ichida `node-canvas` paketini ishlatadi — bu Cairo/Pango grafika kutubxonalariga bog'liq **native** modul. Agar bu kutubxonalar oldindan o'rnatilmagan bo'lsa, `npm install` manbadan kompilyatsiya qilishga urinadi va **xato bilan to'xtaydi**:
+`chartjs-node-canvas` ichida `node-canvas` paketini ishlatadi — bu Cairo/Pango grafika kutubxonalariga bog'liq **native** modul. Node 22 uchun tayyor (prebuilt) binar GitHub'da hali mavjud bo'lmasligi mumkin, shu sabab `npm install` manbadan kompilyatsiya qilishga o'tadi. Buning uchun **`pkg-config`** ham kerak — bu `build-essential` tarkibiga kirmaydi va alohida o'rnatilishi shart:
 
 ```bash
-sudo apt install -y build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
+sudo apt install -y pkg-config build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
 ```
 
-Bu — Node.js versiyasidan mutlaqo mustaqil talab; uni o'rnatmasdan 7-bosqichdagi (hisobot/grafik) funksiyalar ishlamaydi.
+Bu — Node.js versiyasidan mutlaqo mustaqil talab; uni o'rnatmasdan 7-bosqichdagi (hisobot/grafik) funksiyalar ishlamaydi. Agar `npm install`ni bu paketlarsiz allaqachon ishga tushirgan bo'lsangiz, ularni o'rnatgach `node_modules`ni tozalab qayta urinib ko'ring:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
 
 ## 5. Redis o'rnatish
 
