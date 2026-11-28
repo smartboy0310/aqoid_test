@@ -293,6 +293,8 @@ async function showResults(ctx, testId, groupId, page) {
 
 staff.hears(MENU.newTest, (ctx) => goStep(ctx, 'subject', { wid: newWizardId(), groups: [] }));
 staff.hears([MENU.tests, MENU.myTests], (ctx) => showTestList(ctx, 'c', 0));
+// Adminning "Natijalar" tugmasi admin.js da qayta ishlanadi, bu yerga o'qituvchiniki keladi
+staff.hears(MENU.results, (ctx) => showTestList(ctx, 'r', 0));
 
 staff.callbackQuery(/^t:list:([cr]):(\d+)$/, async (ctx) => {
   await ack(ctx);

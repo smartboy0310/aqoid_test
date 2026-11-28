@@ -12,6 +12,7 @@ Telegram orqali test o'tkazadigan bot. Node.js, grammY, PostgreSQL, exceljs.
 | `src/admin.js` | Testni boshqarish, guruhlar, foydalanuvchilar |
 | `src/teacher.js` | Test joylash va natijalar (o'qituvchi va admin) |
 | `src/student.js` | Ro'yxatdan o'tish va test ishlash |
+| `src/requests.js` | O'qituvchi roli so'rovlari |
 | `src/parser.js` | `.txt` test faylini o'qish va tekshirish |
 | `src/excel.js` | Excel hisobot |
 | `src/ui.js` | Menyular, sana formati, umumiy yordamchilar |
@@ -87,8 +88,9 @@ bitta tokenni ikki joyda ishga tushirmang.
 
 1. Admin botga `/start` yuboradi.
 2. **👥 Guruhlar → ➕ Guruh qo'shish** orqali guruhlar kiritiladi.
-3. O'qituvchi botga `/start` yuborib, ism-familiyasini yozadi (guruh tanlashi shart emas).
-4. Admin **🔍 Foydalanuvchilar** orqali uni topib, o'qituvchi rolini beradi.
+3. O'qituvchi botga `/start` yuborib, ism-familiyasini yozadi va **O'qituvchiman** tugmasini bosadi.
+4. Adminga so'rov keladi: **✅ Tasdiqlash** yoki **❌ Rad etish**. Ko'rib chiqilmagan so'rovlar
+   admin `/start` bosganda qayta chiqadi (bir martada 20 tagacha).
 5. **➕ Test joylash**: fan → test nomi → `.txt` fayl → tasdiqlash → guruhlar → boshlanish →
    tugash → davomiylik → savollar soni → saqlash.
 
@@ -117,6 +119,8 @@ Keyingi savol
 
 | Masala | Yechim |
 |---|---|
+| O'qituvchi so'rovi | Barcha adminlarga yuboriladi, birinchi qaror kuchga kiradi. Rad etilgan yoki roli bekor qilingan foydalanuvchi qayta so'rov yubora olmaydi; admin uni qidiruvdan o'qituvchi qilishi yoki "Qayta ro'yxatdan o'tkazishi" mumkin. |
+| Guruhsiz qolgan talaba | Guruhi o'chirilsa, `/start` da rol tanlash qayta chiqadi. O'qituvchilik baribir admin tasdig'ini talab qiladi. |
 | Guruhni almashtirish | Talaba guruhni bir marta tanlaydi. Xato bo'lsa, admin foydalanuvchini "Qayta ro'yxatdan o'tkazadi". |
 | Qolgan vaqt | Har bir savol chiqqan paytdagi vaqt ko'rsatiladi (har soniyada yangilanmaydi). |
 | Testni to'xtatish | Ishlayotganlarning testi shu zahoti yakunlanadi. |
@@ -136,7 +140,23 @@ pg_dump "postgresql://testbot:KUCHLI_PAROL@localhost:5432/testbot" > zaxira_$(da
 
 Tiklash (bo'sh bazaga): `psql "postgresql://..." < zaxira_2026-01-01.sql`
 
-## 8. Muammolar
+## 8. Ishlab turgan botni yangilash
+
+Loyiha papkasida (masalan, `/opt/aqoid_test`):
+
+```bash
+# 1. Zaxira nusxa (7-bo'lim), 2. yangi fayllarni ustiga yozing (.env o'zgarmaydi), so'ng:
+psql "postgresql://testbot:PAROL@localhost:5432/testbot" -v ON_ERROR_STOP=1 -f migrations/002_teacher_request.sql
+pm2 restart test-bot
+```
+
+Bot ishga tushganda ham shu ustunlarni o'zi qo'shadi, qo'lda ishga tushirish majburiy emas.
+`must be owner of table users` xatosi chiqsa, jadval egasi boshqa foydalanuvchi:
+`sudo -u postgres psql -d testbot -f migrations/002_teacher_request.sql`.
+
+Mavjud o'qituvchilar, talabalar va natijalar o'zgarmaydi.
+
+## 9. Muammolar
 
 | Xabar | Sababi |
 |---|---|

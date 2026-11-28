@@ -3,6 +3,7 @@ import { isAdminId } from './config.js';
 import { one, query, setState } from './db.js';
 import { findTest, showTestCard, showTestList, startEditTest } from './teacher.js';
 import { closeExpired } from './student.js';
+import { decideTeacherRequest } from './requests.js';
 import {
   MENU, ack, clean, pagedKeyboard, show, studentMenu, teacherMenu,
 } from './ui.js';
@@ -154,6 +155,32 @@ admin.callbackQuery(/^a:gdelyes:(\d+)$/, async (ctx) => {
   await showGroups(ctx, 0, "🗑 Guruh o'chirildi.");
 });
 
+// ---------- O'qituvchi so'rovlari ----------
+
+admin.callbackQuery(/^a:treq:(\d+):(\d+):([01])$/, async (ctx) => {
+  const [, userId, requestNo, value] = ctx.match;
+  const approve = value === '1';
+  const user = await decideTeacherRequest(userId, requestNo, approve);
+
+  await ack(ctx);
+  if (!user) {
+    return show(ctx, "ℹ️ Bu so'rov allaqachon ko'rib chiqilgan yoki bekor qilingan.");
+  }
+  await show(ctx, `${user.full_name}\n${approve ? '✅ Tasdiqlandi' : '❌ Rad etildi'}`);
+
+  if (user.is_blocked) return;
+  if (approve) {
+    await notify(ctx, userId, "✅ So'rovingiz tasdiqlandi. Siz o'qituvchisiz.", teacherMenu);
+  } else {
+    await notify(
+      ctx,
+      userId,
+      "❌ O'qituvchi bo'lish so'rovingiz rad etildi.\nTalaba sifatida ro'yxatdan o'tishingiz mumkin.",
+      new InlineKeyboard().text("Talaba sifatida ro'yxatdan o'tish", 's:role:student'),
+    );
+  }
+});
+
 // ---------- Foydalanuvchilar ----------
 
 async function searchUsers(ctx, search, page) {
@@ -184,7 +211,10 @@ async function showUser(ctx, userId, note) {
   if (!user) return show(ctx, 'Foydalanuvchi topilmadi.');
 
   const targetIsAdmin = isAdminId(user.id);
-  const role = targetIsAdmin ? 'Admin' : user.is_teacher ? "O'qituvchi" : 'Talaba';
+  let role = 'Talaba';
+  if (targetIsAdmin) role = 'Admin';
+  else if (user.is_teacher) role = "O'qituvchi";
+  else if (user.teacher_request === 'pending') role = "O'qituvchi (tasdiq kutilmoqda)";
   const text =
     `${note ? `${note}\n\n` : ''}` +
     `${user.full_name ?? '—'}\n` +
@@ -246,8 +276,10 @@ admin.callbackQuery(/^a:uteach:(\d+):([01])$/, async (ctx) => {
   if (isAdminId(userId)) return ack(ctx, "Adminning roli o'zgartirilmaydi.", true);
   await ack(ctx);
   const teacher = value === '1';
+  // Rol bekor qilinsa, foydalanuvchi qayta so'rov yubora olmaydi
   const changed = await one(
-    `UPDATE users SET is_teacher = $2, state = NULL, data = '{}'
+    `UPDATE users SET is_teacher = $2, state = NULL, data = '{}',
+       teacher_request = CASE WHEN $2 THEN NULL ELSE 'rejected' END
      WHERE id = $1 AND is_teacher <> $2 RETURNING is_blocked`,
     [userId, teacher],
   );
@@ -267,10 +299,12 @@ admin.callbackQuery(/^a:ureset:(\d+)$/, async (ctx) => {
   if (isAdminId(userId)) return ack(ctx, 'Admin uchun mumkin emas.', true);
   await ack(ctx);
   await query(
-    "UPDATE users SET full_name = NULL, group_id = NULL, state = NULL, data = '{}' WHERE id = $1",
+    `UPDATE users SET full_name = NULL, group_id = NULL, is_teacher = FALSE,
+       teacher_request = NULL, state = NULL, data = '{}'
+     WHERE id = $1`,
     [userId],
   );
-  await showUser(ctx, userId, "♻️ Foydalanuvchi /start bosib, ism va guruhini qayta kiritadi.");
+  await showUser(ctx, userId, "♻️ Foydalanuvchi /start bosib, ro'yxatdan qayta o'tadi.");
 });
 
 // ---------- Matn kiritish ----------

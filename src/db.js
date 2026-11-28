@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS users (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- O'qituvchi roli so'rovi. teacher_request: NULL | 'pending' | 'rejected'
+-- teacher_request_no: eski so'rov tugmasi yangi so'rovga ta'sir qilmasligi uchun
+ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_request TEXT
+  CHECK (teacher_request IN ('pending', 'rejected'));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS teacher_request_no INT NOT NULL DEFAULT 0;
+
 CREATE TABLE IF NOT EXISTS tests (
   id              SERIAL PRIMARY KEY,
   subject         TEXT NOT NULL,

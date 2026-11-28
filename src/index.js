@@ -6,6 +6,7 @@ import { initDb, pool, setState, upsertUser } from './db.js';
 import { admin } from './admin.js';
 import { staff } from './teacher.js';
 import { closeExpired, student, studentHome } from './student.js';
+import { WAITING_TEXT, sendPendingRequests } from './requests.js';
 import { MENU_TEXTS, ack, adminMenu, teacherMenu } from './ui.js';
 
 const TIMER_INTERVAL = 3000;
@@ -35,6 +36,13 @@ app.use(async (ctx, next) => {
     else await ctx.reply(text, { reply_markup: { remove_keyboard: true } });
     return;
   }
+
+  // So'rovi ko'rib chiqilmagan foydalanuvchiga hech qanday funksiya ochilmaydi
+  if (!ctx.isStaff && ctx.user.teacher_request === 'pending') {
+    if (ctx.callbackQuery) await ack(ctx, WAITING_TEXT, true);
+    else await ctx.reply(WAITING_TEXT, { reply_markup: { remove_keyboard: true } });
+    return;
+  }
   await next();
 });
 
@@ -48,7 +56,11 @@ app.use(async (ctx, next) => {
 });
 
 async function home(ctx) {
-  if (ctx.isAdmin) return ctx.reply('Admin paneli. Kerakli bo\'limni tanlang.', { reply_markup: adminMenu });
+  if (ctx.isAdmin) {
+    await ctx.reply('Admin paneli. Kerakli bo\'limni tanlang.', { reply_markup: adminMenu });
+    // Xabar yetib bormagan yoki e'tibordan chetda qolgan so'rovlar qayta ko'rsatiladi
+    return sendPendingRequests(ctx.api, ctx.from.id);
+  }
   if (ctx.isStaff) return ctx.reply("O'qituvchi bo'limi. Kerakli bo'limni tanlang.", { reply_markup: teacherMenu });
   return studentHome(ctx);
 }

@@ -3,7 +3,7 @@ import { GrammyError, InlineKeyboard, Keyboard } from 'grammy';
 export const MENU = {
   newTest: '➕ Test joylash',
   tests: '📋 Testlar',
-  myTests: '📋 Testlarim',
+  myTests: '📋 Mening testlarim',
   results: '📊 Natijalar',
   groups: '👥 Guruhlar',
   users: '🔍 Foydalanuvchilar',
@@ -19,7 +19,8 @@ export const adminMenu = new Keyboard()
   .resized().persistent();
 
 export const teacherMenu = new Keyboard()
-  .text(MENU.newTest).text(MENU.myTests)
+  .text(MENU.newTest).text(MENU.myTests).row()
+  .text(MENU.results)
   .resized().persistent();
 
 export const studentMenu = new Keyboard()

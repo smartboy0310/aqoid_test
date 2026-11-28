@@ -4,6 +4,7 @@ import {
   one, query, saveAnswer, setAttemptMessage, setState, startAttempt,
 } from './db.js';
 import { isAdminId } from './config.js';
+import { WAITING_TEXT, createTeacherRequest, notifyAdmins } from './requests.js';
 import {
   MENU, ack, clean, formatDate, formatDuration, pagedKeyboard, percent, show, studentMenu,
 } from './ui.js';
@@ -23,10 +24,27 @@ export async function studentHome(ctx) {
     return;
   }
   if (!ctx.user.group_id) {
-    await askGroup(ctx, 0);
+    await askRole(ctx);
     return;
   }
   await showTests(ctx);
+}
+
+// Guruhi yo'q foydalanuvchi: rol tanlaydi. So'rovi rad etilgan bo'lsa, faqat talaba bo'la oladi.
+async function askRole(ctx) {
+  if (ctx.user.teacher_request === 'rejected') {
+    await show(
+      ctx,
+      "O'qituvchi bo'lish so'rovingiz rad etilgan yoki rolingiz bekor qilingan.\n" +
+        "Talaba sifatida ro'yxatdan o'tishingiz mumkin.",
+      new InlineKeyboard().text("Talaba sifatida ro'yxatdan o'tish", 's:role:student'),
+    );
+    return;
+  }
+  const keyboard = new InlineKeyboard()
+    .text('Talabaman', 's:role:student')
+    .text("O'qituvchiman", 's:role:teacher');
+  await show(ctx, 'Siz kimsiz?', keyboard);
 }
 
 async function askGroup(ctx, page) {
@@ -132,6 +150,24 @@ student.on('message:text', async (ctx, next) => {
   ctx.user.full_name = name;
   await setState(ctx, null);
   await studentHome(ctx);
+});
+
+// Rol tanlash faqat ism kiritgan va hali guruh tanlamagan foydalanuvchi uchun
+const canChooseRole = (user) => Boolean(user.full_name && !user.group_id);
+
+student.callbackQuery('s:role:student', async (ctx) => {
+  if (!canChooseRole(ctx.user)) return ack(ctx, 'Bu tugma eskirgan.');
+  await ack(ctx);
+  await askGroup(ctx, 0);
+});
+
+student.callbackQuery('s:role:teacher', async (ctx) => {
+  // Barcha shartlar bazada tekshiriladi: ikki marta bosilsa ham bitta so'rov yaratiladi
+  const request = await createTeacherRequest(ctx.from.id);
+  if (!request) return ack(ctx, "So'rov yuborib bo'lmaydi.", true);
+  await ack(ctx);
+  await show(ctx, WAITING_TEXT);
+  await notifyAdmins(ctx.api, request);
 });
 
 student.callbackQuery(/^s:gp:(\d+)$/, async (ctx) => {
