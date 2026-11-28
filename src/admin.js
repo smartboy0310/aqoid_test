@@ -183,23 +183,33 @@ admin.callbackQuery(/^a:treq:(\d+):(\d+):([01])$/, async (ctx) => {
 
 // ---------- Foydalanuvchilar ----------
 
-async function searchUsers(ctx, search, page) {
+const USERS_PER_PAGE = 10;
+
+// search bo'sh bo'lsa, barcha foydalanuvchilar chiqadi
+async function showUsers(ctx, search, page) {
+  // Qidiruv va sahifa saqlanadi: kartochkadan o'sha sahifaga qaytiladi, yozilgan matn qidiriladi
+  await setState(ctx, 'adm:usearch', { search, page });
+
   // % va _ belgilari oddiy harf sifatida qidiriladi
   const pattern = `%${search.replace(/[\\%_]/g, '\\$&')}%`;
   const users = await query(
     `SELECT u.id, u.full_name, u.is_blocked, g.name AS group_name
      FROM users u LEFT JOIN groups g ON g.id = u.group_id
      WHERE u.full_name IS NOT NULL AND (u.full_name ILIKE $1 OR g.name ILIKE $1)
-     ORDER BY u.full_name LIMIT 500`,
+     ORDER BY u.full_name, u.id`,
     [pattern],
   );
   const keyboard = pagedKeyboard(users, {
     page,
+    perPage: USERS_PER_PAGE,
     label: (u) => `${u.is_blocked ? '🚫 ' : ''}${u.full_name} (${u.group_name ?? '—'})`,
     data: (u) => `a:u:${u.id}`,
     pageData: (p) => `a:ul:${p}`,
   });
-  await show(ctx, `«${search}» bo'yicha topildi: ${users.length}\nBoshqa qidiruv uchun yangi matn yozing.`, keyboard);
+  if (search) keyboard.text('📋 Barcha foydalanuvchilar', 'a:uall');
+
+  const title = search ? `«${search}» bo'yicha topildi: ${users.length}` : `Foydalanuvchilar soni: ${users.length}`;
+  await show(ctx, `${title}\nQidirish uchun ism yoki guruh nomini yozing.`, keyboard);
 }
 
 async function showUser(ctx, userId, note) {
@@ -238,7 +248,8 @@ async function showUser(ctx, userId, note) {
       .text("♻️ Qayta ro'yxatdan o'tkazish", `a:ureset:${user.id}`)
       .row();
   }
-  keyboard.text('⬅️ Qidiruv natijalari', 'a:ul:0');
+  const page = ctx.user.state === 'adm:usearch' ? ctx.user.data.page : 0;
+  keyboard.text("⬅️ Ro'yxatga", `a:ul:${page}`);
   await show(ctx, text, keyboard);
 }
 
@@ -246,16 +257,17 @@ async function showUser(ctx, userId, note) {
 const notify = (ctx, userId, text, keyboard) =>
   ctx.api.sendMessage(userId, text, { reply_markup: keyboard }).catch(() => {});
 
-admin.hears(MENU.users, async (ctx) => {
-  await setState(ctx, 'adm:usearch');
-  await ctx.reply('Ism (familiya) yoki guruh nomini yozing:');
+admin.hears(MENU.users, (ctx) => showUsers(ctx, '', 0));
+
+admin.callbackQuery('a:uall', async (ctx) => {
+  await ack(ctx);
+  await showUsers(ctx, '', 0);
 });
 
 admin.callbackQuery(/^a:ul:(\d+)$/, async (ctx) => {
   await ack(ctx);
-  const search = ctx.user.state === 'adm:usearch' ? ctx.user.data.search : undefined;
-  if (search === undefined) return show(ctx, `Qidirish uchun «${MENU.users}» tugmasini bosing.`);
-  await searchUsers(ctx, search, Number(ctx.match[1]));
+  const search = ctx.user.state === 'adm:usearch' ? ctx.user.data.search : '';
+  await showUsers(ctx, search, Number(ctx.match[1]));
 });
 
 admin.callbackQuery(/^a:u:(\d+)$/, async (ctx) => {
@@ -316,8 +328,7 @@ admin.on('message:text', async (ctx, next) => {
 
   if (state === 'adm:usearch') {
     if (text.length < 2 || text.length > 100) return ctx.reply('Kamida 2 ta belgi yozing.');
-    await setState(ctx, state, { search: text });
-    return searchUsers(ctx, text, 0);
+    return showUsers(ctx, text, 0);
   }
 
   if (!text || text.length > 50) return ctx.reply('Guruh nomi 1 dan 50 tagacha belgi bo\'lsin.');
