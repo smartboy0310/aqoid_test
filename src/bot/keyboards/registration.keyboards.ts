@@ -1,5 +1,5 @@
 import { Markup } from 'telegraf';
-import type { Faculty, Group } from '@prisma/client';
+import type { Faculty, Group } from '../../db/prisma.js';
 
 export function facultyKeyboard(faculties: Faculty[]) {
   return Markup.inlineKeyboard(

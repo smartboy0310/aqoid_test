@@ -1,5 +1,5 @@
 import type { Scenes } from 'telegraf';
-import type { User } from '@prisma/client';
+import type { User } from '../db/prisma.js';
 
 export interface AppWizardSession extends Scenes.WizardSessionData {
   // registration

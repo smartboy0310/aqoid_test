@@ -1,5 +1,5 @@
 import type { MiddlewareFn } from 'telegraf';
-import type { Role } from '@prisma/client';
+import type { Role } from '../../db/prisma.js';
 import type { BotContext } from '../../types/context.js';
 import { t } from '../../i18n/uz.js';
 

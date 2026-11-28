@@ -1,5 +1,5 @@
 import { prisma } from '../db/prisma.js';
-import type { AttemptStatus } from '@prisma/client';
+import type { AttemptStatus } from '../db/prisma.js';
 
 export const attemptRepository = {
   findActive(userId: number, testId: number) {

@@ -1,6 +1,11 @@
-import { PrismaClient } from '@prisma/client';
+import 'dotenv/config';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../src/generated/prisma/client.js';
 
-const prisma = new PrismaClient();
+// Prisma ORM 7 talabi: bu yerda ham (asosiy ilovadan mustaqil skript bo'lgani uchun)
+// PrismaClient alohida, o'z adapteri bilan yaratiladi.
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const huquq = await prisma.faculty.upsert({

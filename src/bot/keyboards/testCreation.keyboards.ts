@@ -1,5 +1,5 @@
 import { Markup } from 'telegraf';
-import type { Subject, Group } from '@prisma/client';
+import type { Subject, Group } from '../../db/prisma.js';
 
 export function subjectKeyboard(subjects: Subject[]) {
   const rows = subjects.map((s) => [Markup.button.callback(s.name, `subject:${s.id}`)]);

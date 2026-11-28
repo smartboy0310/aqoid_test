@@ -9,13 +9,17 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y curl git build-essential ufw
 ```
 
-## 2. Node.js 20 o'rnatish
+## 2. Node.js o'rnatish
+
+**Muhim:** Prisma ORM 7 faqat Node **20.19+**, **22.12+** yoki **24.0+** versiyalarini qo'llab-quvvatlaydi (oraliqdagi versiyalar — masalan 21.x yoki 22.0–22.11 — ishlamaydi). Node **22.x LTS** tavsiya etiladi.
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs
-node -v   # v20.x bo'lishi kerak
+node -v   # v22.12.0 yoki undan yuqori bo'lishi kerak
 ```
+
+Agar serveringizda allaqachon Node 22.14 kabi mos versiya o'rnatilgan bo'lsa, bu qadamni o'tkazib yuborishingiz mumkin.
 
 ## 3. PostgreSQL o'rnatish
 
@@ -30,7 +34,17 @@ SQL
 
 PostgreSQL odatda faqat `localhost`da tinglaydi (standart sozlama) — buni o'zgartirmang, tashqaridan kirish shart emas.
 
-## 4. Redis o'rnatish
+## 4. Grafik generatsiya uchun tizim kutubxonalari (muhim!)
+
+`chartjs-node-canvas` ichida `node-canvas` paketini ishlatadi — bu Cairo/Pango grafika kutubxonalariga bog'liq **native** modul. Agar bu kutubxonalar oldindan o'rnatilmagan bo'lsa, `npm install` manbadan kompilyatsiya qilishga urinadi va **xato bilan to'xtaydi**:
+
+```bash
+sudo apt install -y build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
+```
+
+Bu — Node.js versiyasidan mutlaqo mustaqil talab; uni o'rnatmasdan 7-bosqichdagi (hisobot/grafik) funksiyalar ishlamaydi.
+
+## 5. Redis o'rnatish
 
 ```bash
 sudo apt install -y redis-server
@@ -39,7 +53,7 @@ sudo systemctl start redis-server
 redis-cli ping   # "PONG" qaytarishi kerak
 ```
 
-## 5. Firewall
+## 6. Firewall
 
 ```bash
 sudo ufw allow OpenSSH
@@ -49,7 +63,7 @@ sudo ufw status
 
 Boshqa hech qanday port ochilmaydi — bot va worker faqat tashqariga (Telegram API, pg_dump) ulanadi.
 
-## 6. Loyihani serverga joylashtirish
+## 7. Loyihani serverga joylashtirish
 
 ```bash
 cd /opt
@@ -60,7 +74,7 @@ git clone <sizning-repo-manzilingiz> .
 # yoki: scp -r tiu-test-bot/* user@server:/opt/tiu-test-bot/
 ```
 
-## 7. Muhit va bog'liqliklar
+## 8. Muhit va bog'liqliklar
 
 ```bash
 cp .env.example .env
@@ -72,7 +86,9 @@ npm install
 npm ls prisma @prisma/client   # 7.x ekanini tasdiqlang!
 ```
 
-## 8. Baza
+## 9. Baza
+
+**Muhim arxitektura o'zgarishi (Prisma ORM 7):** Prisma Client endi `node_modules` ichiga emas, loyihaning o'zidagi `src/generated/prisma` papkasiga generatsiya qilinadi, va ulanish uchun **driver adapter** (`@prisma/adapter-pg`) talab qilinadi — bular allaqachon kodga kiritilgan (`src/db/prisma.ts`, `prisma.config.ts`). Sizdan qo'shimcha sozlash talab qilinmaydi, lekin buyruqlarni ketma-ket bajarish muhim:
 
 ```bash
 npx prisma generate
@@ -96,7 +112,7 @@ WHERE "status" = 'IN_PROGRESS';
 
 So'ng: `npx prisma migrate deploy`
 
-## 9. Build va PM2
+## 10. Build va PM2
 
 ```bash
 npm run build
@@ -107,14 +123,14 @@ pm2 save
 pm2 startup   # chiqqan buyruqni ko'chirib, alohida ishga tushiring (sudo talab qiladi)
 ```
 
-## 10. Backup uchun pg_dump (admin panelidagi "💾 Backup" tugmasi uchun)
+## 11. Backup uchun pg_dump (admin panelidagi "💾 Backup" tugmasi uchun)
 
 ```bash
 sudo apt install -y postgresql-client-16   # agar 3-qadamda o'rnatilmagan bo'lsa
 pg_dump --version
 ```
 
-## 11. Tekshirish
+## 12. Tekshirish
 
 ```bash
 pm2 status        # ikkala jarayon ham "online" bo'lishi kerak
@@ -124,12 +140,13 @@ pm2 logs tiu-worker --lines 50
 
 Telegramda botga `/start` yuboring — javob kelishi kerak.
 
-## 12. Yangilash protsedurasi (keyingi versiyalar uchun)
+## 13. Yangilash protsedurasi (keyingi versiyalar uchun)
 
 ```bash
 cd /opt/tiu-test-bot
 git pull
 npm install
+npx prisma generate
 npx prisma migrate deploy
 npm run build
 pm2 reload ecosystem.config.cjs --update-env
@@ -137,7 +154,7 @@ pm2 reload ecosystem.config.cjs --update-env
 
 `pm2 reload` (restart emas) — talabalar test topshirayotgan paytda ham jarayonni uzilishsiz yangilaydi.
 
-## 13. Avtomatik kunlik zaxira (cron)
+## 14. Avtomatik kunlik zaxira (cron)
 
 Admin panelidagi "💾 Backup" tugmasi qo'lda ishlaydi. Qo'shimcha xavfsizlik uchun — kunlik avtomatik zaxira:
 
@@ -154,7 +171,7 @@ Qo'shing:
 
 Har kuni soat 03:00da avtomatik zaxira yaratiladi.
 
-## 14. Test bazasini sozlash (ixtiyoriy — integratsiya testlari uchun)
+## 15. Test bazasini sozlash (ixtiyoriy — integratsiya testlari uchun)
 
 ```bash
 sudo -u postgres createdb tiu_bot_test
