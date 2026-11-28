@@ -1,9 +1,3 @@
 node_modules/
-dist/
-src/generated/
 .env
-.env.local
 *.log
-logs/
-coverage/
-.DS_Store

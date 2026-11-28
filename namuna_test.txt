@@ -1,0 +1,28 @@
+Elektron pochta manzili to‘g‘ri yozilgan variantni ko‘rsating.
+====
+#info@umail.uz
+====
+info@.uz
+====
+info@www.umail.uz
+====
+info.umail@uz
++++++
+Kompyuterlarning tarmoq turlari qaysi javobda to‘g‘ri ko‘rsatilgan?
+====
+mahalliy, local
+====
+internet, elektron pochta
+====
+global, internet
+====
+#lokal, mintaqaviy, global
++++++
+Axborotning eng kichik o‘lchov birligi qaysi?
+====
+bayt
+====
+#bit
+====
+kilobayt
++++++

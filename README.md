@@ -1,80 +1,146 @@
-# TIU Test Bot
+# Test bot — modul ta'lim tizimi
 
-Toshkent islom instituti talabalari uchun Telegram test boti — Node.js + TypeScript + Telegraf + PostgreSQL (Prisma) + Redis (BullMQ).
+Telegram orqali test o'tkazadigan bot. Node.js, grammY, PostgreSQL, exceljs.
 
-Ushbu zip — Claude bilan suhbat davomida 1–9-bosqichlarda ishlab chiqilgan **to'liq manba kod**. Loyihalash qarorlari, arxitektura asoslari va formulalarning izohi suhbatning o'zida keltirilgan — bu fayl faqat ishga tushirish qadamlarini jamlaydi. Production serverga joylashtirish uchun **DEPLOY.md** faylini ko'ring.
+## Fayllar
 
-## Talablar
+| Fayl | Vazifasi |
+|---|---|
+| `src/index.js` | Ishga tushirish, rol va cheklovni tekshirish, taymer |
+| `src/config.js` | `.env` sozlamalari |
+| `src/db.js` | Baza jadvallari va test ishlash so'rovlari |
+| `src/admin.js` | Testni boshqarish, guruhlar, foydalanuvchilar |
+| `src/teacher.js` | Test joylash va natijalar (o'qituvchi va admin) |
+| `src/student.js` | Ro'yxatdan o'tish va test ishlash |
+| `src/parser.js` | `.txt` test faylini o'qish va tekshirish |
+| `src/excel.js` | Excel hisobot |
+| `src/ui.js` | Menyular, sana formati, umumiy yordamchilar |
 
-- Node.js **20.19+, 22.12+ yoki 24.0+** (Prisma ORM 7 ning aniq talabi — Node 22.x tavsiya etiladi)
-- PostgreSQL
-- Redis
-- `chartjs-node-canvas` uchun tizim kutubxonalari: `sudo apt install -y pkg-config build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev`
-- PM2 (production uchun): `npm install -g pm2`
-
-## Tezkor boshlash (lokal development)
+## 1. O'rnatish (Ubuntu server)
 
 ```bash
-npm install
-npm ls prisma @prisma/client   # 7.x ekanini tasdiqlang, 8 emas!
+# Node.js 22 yoki undan yangi LTS (masalan, nvm orqali)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+source ~/.bashrc
+nvm install --lts
 
+# PostgreSQL
+sudo apt update
+sudo apt install -y postgresql
+```
+
+### Bazani yaratish
+
+`KUCHLI_PAROL` o'rniga o'z parolingizni yozing (`@ : / # ?` belgilarisiz).
+
+```bash
+sudo -u postgres psql -c "CREATE USER testbot WITH PASSWORD 'KUCHLI_PAROL';"
+sudo -u postgres psql -c "CREATE DATABASE testbot OWNER testbot ENCODING 'UTF8' TEMPLATE template0;"
+```
+
+Jadvallar bot birinchi marta ishga tushganda avtomatik yaratiladi.
+
+### Loyihani sozlash
+
+```bash
+cd test-bot
+npm install --omit=dev
 cp .env.example .env
-# .env faylini haqiqiy qiymatlar bilan to'ldiring (BOT_TOKEN, DATABASE_URL, REDIS_URL, SUPER_ADMIN_TELEGRAM_ID)
-
-npx prisma generate
-npx prisma migrate dev --name init
-npx prisma db seed   # NAMUNA fakultet/guruhlarni kiritadi — prisma/seed.ts faylida real ma'lumot bilan almashtiring
+nano .env
+chmod 600 .env
 ```
 
-Ikkita alohida terminalda:
+`.env` qiymatlari:
+
+- `BOT_TOKEN` — [@BotFather](https://t.me/BotFather) bergan token
+- `ADMIN_IDS` — adminlarning Telegram ID raqamlari, vergul bilan
+- `DATABASE_URL` — `postgresql://testbot:KUCHLI_PAROL@localhost:5432/testbot`
+
+## 2. Ishga tushirish
 
 ```bash
-npm run dev:bot
-npm run dev:worker
+npm start
 ```
 
-## Muhim arxitektura eslatmasi (Prisma ORM 7)
+`Bot ishga tushdi: @...` yozuvi chiqsa, hammasi tayyor. To'xtatish: `Ctrl+C`.
 
-Prisma Client bu loyihada `node_modules` ichiga emas, `src/generated/prisma` papkasiga generatsiya qilinadi (Prisma 7'ning `output` talabi), va ulanish `@prisma/adapter-pg` driver adapteri orqali amalga oshiriladi (`new PrismaClient()` adaptersiz Prisma 7'da xato beradi). Bularning barchasi `src/db/prisma.ts` va `prisma.config.ts` ichida allaqachon sozlangan — sizdan qo'shimcha ish talab qilinmaydi, `npx prisma generate` buyrug'ini bajarish yetarli.
-
-## Testlash
+## 3. Serverda pm2 bilan
 
 ```bash
-npm test                  # unit testlar — tezkor, bazaga ulanmaydi
-npm run test:integration  # integratsiya testlari — PostgreSQL + Redis kerak (.env.test sozlang, DEPLOY.md 14-bo'lim)
-npm run test:all          # ikkalasi birga
+npm install -g pm2
+pm2 start src/index.js --name test-bot
+pm2 save
+pm2 startup          # ekranda chiqqan buyruqni nusxalab bajaring
 ```
 
-## Production deploy
+| Amal | Buyruq |
+|---|---|
+| Holat | `pm2 status` |
+| Loglar | `pm2 logs test-bot` |
+| Qayta ishga tushirish | `pm2 restart test-bot` |
+| To'xtatish | `pm2 stop test-bot` |
 
-To'liq Ubuntu server yo'riqnomasi uchun **DEPLOY.md** ga qarang.
+**Muhim:** bot faqat **bitta nusxada** ishlashi kerak. `pm2 -i` (cluster rejimi) ishlatmang va
+bitta tokenni ikki joyda ishga tushirmang.
 
-## Loyiha holati (1–9-bosqich, barchasi yakunlangan)
+## 4. Birinchi sozlash
 
-- ✅ Arxitektura, papka tuzilmasi, Prisma schema
-- ✅ Ro'yxatdan o'tish, rollar (STUDENT / TEACHER / ADMIN)
-- ✅ Test yaratish, Excel/CSV/Word'dan savol import qilish
-- ✅ Test topshirish (timer, shuffle, qayta boshlashni bloklash)
-- ✅ Tahlil moduli (Cronbach alpha, diskriminatsiya indeksi, distraktor tahlili) va Excel/grafik hisobot
-- ✅ Admin paneli (foydalanuvchilarni boshqarish, broadcast, statistika, backup)
-- ✅ Unit va integratsiya testlari, deploy yo'riqnomasi
+1. Admin botga `/start` yuboradi.
+2. **👥 Guruhlar → ➕ Guruh qo'shish** orqali guruhlar kiritiladi.
+3. O'qituvchi botga `/start` yuborib, ism-familiyasini yozadi (guruh tanlashi shart emas).
+4. Admin **🔍 Foydalanuvchilar** orqali uni topib, o'qituvchi rolini beradi.
+5. **➕ Test joylash**: fan → test nomi → `.txt` fayl → tasdiqlash → guruhlar → boshlanish →
+   tugash → davomiylik → savollar soni → saqlash.
 
-## Papka tuzilmasi (qisqacha)
+## 5. Test fayli formati
+
+UTF-8 kodlashidagi `.txt` fayl. Namuna: `namuna_test.txt` (botda **📄 Namuna fayl** tugmasi).
 
 ```
-prisma/           Prisma schema va seed skripti
-src/
-  app.ts          Bot entrypoint (long polling)
-  worker.ts       Worker entrypoint (BullMQ: attempt-timeout, reports, broadcast, backup)
-  bot/            Telegraf: handlers, scenes, middlewares, keyboards
-  services/       Biznes logika (Telegramdan mustaqil)
-  repositories/   Faqat Prisma so'rovlari
-  queues/         BullMQ producer/consumer juftliklari
-  utils/          Sof funksiyalar (shuffle, timer, statistics, lock)
-tests/
-  integration/    Haqiqiy DB/Redis talab qiluvchi testlar
+Savol matni
+====
+#to'g'ri variant
+====
+noto'g'ri variant
++++++
+Keyingi savol
+====
+...
 ```
 
-## Muhim eslatma
+- Har bir savolda 2–6 ta variant, aynan bittasi `#` bilan belgilanadi.
+- Variantlar `====` bilan, savollar `+++++` bilan ajratiladi.
+- Fayl hajmi 1 MB gacha, savollar 1000 tagacha.
+- Variant boshidagi birinchi `#` belgisi to'g'ri javob deb olinadi. Noto'g'ri variant `#` bilan boshlanmasin.
 
-Bu kod ushbu suhbat muhitida (tarmoqsiz) ishga tushirib ko'rilmagan — `npm install` va bazaga ulanish talab qilingani uchun. Birinchi marta ishga tushirishda yuqoridagi buyruqlarni ketma-ket bajaring va xatoliklarni shu asosda tuzating.
+## 6. Tanlangan sodda yechimlar
+
+| Masala | Yechim |
+|---|---|
+| Guruhni almashtirish | Talaba guruhni bir marta tanlaydi. Xato bo'lsa, admin foydalanuvchini "Qayta ro'yxatdan o'tkazadi". |
+| Qolgan vaqt | Har bir savol chiqqan paytdagi vaqt ko'rsatiladi (har soniyada yangilanmaydi). |
+| Testni to'xtatish | Ishlayotganlarning testi shu zahoti yakunlanadi. |
+| Sozlamalarni o'zgartirish | Faqat admin. Davomiylik va tugash vaqti ishlayotganlarga ham ta'sir qiladi; savollar soni faqat yangi urinishlarga. To'xtatilgan test qayta ochiladi, lekin yakunlangan urinishlar qayta ochilmaydi. |
+| Testni o'chirish | Natijalari bilan butunlay o'chadi (avval tasdiq so'raladi). |
+| Guruhni o'chirish | Eski natijalar guruh nomi bilan saqlanadi. |
+| Cheklangan talaba | Hech narsa qila olmaydi. Boshlangan testining vaqti davom etadi va o'zi yopiladi. |
+| Natijalar | Faqat yakunlangan urinishlar ko'rsatiladi. |
+| Admin va o'qituvchi | Test ishlamaydi. Sinash uchun alohida talaba akkauntidan foydalaning. |
+| Qo'shimcha paketlar | `@grammyjs/runner` (ko'p talaba bir vaqtda ishlashi uchun) va `@grammyjs/auto-retry` (Telegram limiti uchun) — grammY ning rasmiy plaginlari. |
+
+## 7. Zaxira nusxa
+
+```bash
+pg_dump "postgresql://testbot:KUCHLI_PAROL@localhost:5432/testbot" > zaxira_$(date +%F).sql
+```
+
+Tiklash (bo'sh bazaga): `psql "postgresql://..." < zaxira_2026-01-01.sql`
+
+## 8. Muammolar
+
+| Xabar | Sababi |
+|---|---|
+| `401: Unauthorized` | `BOT_TOKEN` noto'g'ri |
+| `409: Conflict` | Bot boshqa joyda ham ishlab turibdi |
+| `password authentication failed` | `DATABASE_URL` dagi login yoki parol noto'g'ri |
+| `ECONNREFUSED ...5432` | PostgreSQL ishlamayapti: `sudo systemctl start postgresql` |
